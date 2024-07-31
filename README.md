@@ -1,8 +1,8 @@
 # ScaleMAE-Det
 
-This is a minimal implementation of [VitDET](https://arxiv.org/abs/2203.16527) with a [ScaleMAE](https://arxiv.org/abs/2212.14532) Backbone. We utilize a simple feature pyramid network as highlighted in the VitDET paper, and RCNN detection head.
+This is a minimal implementation of [VitDET](https://arxiv.org/abs/2203.16527) with a [ScaleMAE](https://arxiv.org/abs/2212.14532) Backbone. We utilize a simple feature pyramid network as highlighted in the VitDET paper and RCNN detection head.
 
-ScaleMAE trains on (image, scale) tuples, encodes scale into positional embedding, and can learn generalize to scales outside of training distribution. This is particularly useful for satellite imagery. We utilize the pretrained ScaleMAE backbone, through away the classification head and token, and find it achieves up to 0.236 mAP on the xView Dataset.
+ScaleMAE trains on (image, scale) tuples, encodes scale into positional embedding, and can learn generalize to scales outside of training distribution. This is particularly useful for satellite imagery. We utilize the pretrained ScaleMAE backbone, throw away the classification head and token, and find it achieves up to 0.236 mAP on the xView Dataset.
 
 * This repo is a modification on the [ScaleMAE repo](https://github.com/bair-climate-initiative/scale-mae)
 
