@@ -4,7 +4,7 @@ This is a minimal implementation of [VitDET](https://arxiv.org/abs/2203.16527) w
 
 ScaleMAE trains on (image, scale) tuples, encodes scale into positional embedding, and can learn generalize to scales outside of training distribution. This is particularly useful for satellite imagery. We utilize the pretrained ScaleMAE backbone, throw away the classification head and token, and find it achieves up to 0.236 mAP on the xView Dataset.
 
-<img src="https://github.com/user-attachments/assets/f657182d-09b9-43aa-af8d-3b7e5cfdb6dd" alt="Screenshot" width="400" height="400"> (class names were modified)
+<img src="https://github.com/user-attachments/assets/f657182d-09b9-43aa-af8d-3b7e5cfdb6dd" alt="Screenshot" width="400" height="400"> (class names were modified as this is part of another project)
 
 
 
