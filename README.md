@@ -1,8 +1,10 @@
 # ScaleMAE-Det
 
-This is a minimal implementation of [VitDET](https://arxiv.org/abs/2203.16527) with a [ScaleMAE](https://arxiv.org/abs/2212.14532) Backbone. We utilize a simple feature pyramid network as highlighted in the VitDET paper and RCNN detection head.
+This is a minimal implementation of [VitDET](https://arxiv.org/abs/2203.16527) with a [ScaleMAE](https://arxiv.org/abs/2212.14532) Backbone. We utilize a simple feature pyramid network with four feature maps (strides {2, 1, 1/2, 1/4}) and RCNN detection head.
 
 ScaleMAE trains on (image, scale) tuples, encodes scale into positional embedding, and can learn generalize to scales outside of training distribution. This is particularly useful for satellite imagery. We utilize the pretrained ScaleMAE backbone, throw away the classification head and token, and find it achieves up to 0.236 mAP on the xView Dataset.
+
+<img src="https://github.com/user-attachments/assets/44d90139-214c-41b9-a468-1bbf19ffc730" alt="Screenshot" width="200" height="200"> (class names were modified)
 
 * This repo is a modification on the [ScaleMAE repo](https://github.com/bair-climate-initiative/scale-mae)
 
@@ -22,6 +24,7 @@ pip install -e .
 * [**ViT Large 800 ep**](https://github.com/bair-climate-initiative/scale-mae/releases/download/base-800/scalemae-vitlarge-800.pth)
 
 ### Finetuning
+This repo expects a [COCO-formatted](https://docs.aws.amazon.com/rekognition/latest/customlabels-dg/md-coco-overview.html) object detection dataset (segmentation optional).
 
 ```
 python -m torch.distributed.launch --nproc_per_node=4 train.py \
