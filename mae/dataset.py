@@ -6,17 +6,14 @@ from torchvision import tv_tensors
 from torchvision.transforms.v2 import functional as F
 
 class COCOFormatDataset(torch.utils.data.Dataset):
-    def __init__(self, transforms=None):
+    def __init__(self, image_dir, label_file, transforms=None):
         self.transforms = transforms
-        self.root_dir = '/home/timothygao/xview_400_0'
-        self.picture_dir = '/home/timothygao/xview_400_0/train_images_400_0'
-        self.json_path = '/home/timothygao/xview_400_0/train_400_0.json'
+        self.picture_dir = image_dir
+        self.json_path = label_file
         
-        # Load COCO format annotations
         with open(self.json_path, 'r') as f:
             self.coco_data = json.load(f)
         
-        # Create a mapping from image_id to annotations
         self.image_to_anns = {}
         for ann in self.coco_data['annotations']:
             image_id = ann['image_id']
@@ -24,7 +21,6 @@ class COCOFormatDataset(torch.utils.data.Dataset):
                 self.image_to_anns[image_id] = []
             self.image_to_anns[image_id].append(ann)
         
-        # Filter out images with no annotations
         self.image_ids = [img['id'] for img in self.coco_data['images'] if img['id'] in self.image_to_anns]
         self.id_to_filename = {img['id']: img['file_name'] for img in self.coco_data['images'] if img['id'] in self.image_to_anns}
 
@@ -33,13 +29,10 @@ class COCOFormatDataset(torch.utils.data.Dataset):
         img_filename = self.id_to_filename[image_id]
         img_path = os.path.join(self.picture_dir, img_filename)
         
-        # Load image
         img = read_image(img_path)
         
-        # Get annotations for this image
         anns = self.image_to_anns[image_id]
         
-        # Prepare target
         num_objs = len(anns)
         boxes = []
         labels = []
@@ -48,21 +41,18 @@ class COCOFormatDataset(torch.utils.data.Dataset):
         
         for ann in anns:
             boxes.append(ann['bbox'])
-            # COCO format uses [x, y, width, height], convert to [x1, y1, x2, y2]
             boxes[-1][2] += boxes[-1][0]
             boxes[-1][3] += boxes[-1][1]
             labels.append(ann['category_id'])
             areas.append(ann['area'])
             iscrowd.append(ann["iscrowd"])
         
-        # Convert to tensor
-        boxes = torch.as_tensor(boxes, dtype=torch.int16)
-        labels = torch.as_tensor(labels, dtype=torch.int64)
-        areas = torch.as_tensor(areas, dtype=torch.float16)
-        iscrowd = torch.as_tensor(iscrowd, dtype=torch.bool)
+        boxes = torch.as_tensor(boxes)
+        labels = torch.as_tensor(labels)
+        areas = torch.as_tensor(areas)
+        iscrowd = torch.as_tensor(iscrowd)
         image_id = torch.tensor([image_id])
         
-        # Wrap image and targets into torchvision tv_tensors
         img = tv_tensors.Image(img)
         target = {}
         target["boxes"] = tv_tensors.BoundingBoxes(boxes, format="XYXY", canvas_size=F.get_size(img))

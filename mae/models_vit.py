@@ -53,11 +53,10 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
 
             del self.norm  # remove the original norm
 
-    def forward_features(self, x, input_res=None, log_mem = False):
+    def forward_features(self, x, input_res=None, log_mem=False):
         
         B, _, h, w = x.shape
         x = self.patch_embed(x)
-        input_res = input_res.cpu()
 
         if log_mem:
             print(f"A: {torch.cuda.memory_allocated() / 1e6} MB")
@@ -66,58 +65,29 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
             (h * w) / (self.patch_embed.patch_size[0] * self.patch_embed.patch_size[1])
         )
 
-        # print(h, w, self.patch_embed.patch_size[0], self.patch_embed.patch_size[1])
-        # Warning: If h, w != 224, they both become 800
-
         pos_embed = get_2d_sincos_pos_embed_with_resolution(
             x.shape[-1],
             int(num_patches**0.5),
             input_res,
-            cls_token=True,
+            cls_token=False,
             device=x.device,
         )
 
-        # print("HERE", pos_embed)
-
-        # We are not doing classification
-        cls_tokens = self.cls_token.expand(
-            B, -1, -1
-        )  # stole cls_tokens impl from Phil Wang, thanks
-        
-        x = torch.cat((cls_tokens, x), dim=1)
-        ##### TODO: Fine tune more to learn the distribution without cls_token, since we aren't doing classification
-
         x = x + pos_embed
-
+        x = self.pos_drop(x)
+        
         if log_mem:        
             print(f"B: {torch.cuda.memory_allocated() / 1e6} MB")
 
-        x = self.pos_drop(x)
-
+        x = self.norm_pre(x)
         for blk in self.blocks:
             x = blk(x)
             
             if log_mem:
                 print(f"C: {torch.cuda.memory_allocated() / 1e6} MB")
 
+        x = self.norm(x)
         return x
-    
-    def extract_cls_token(self, x):
-        if self.global_pool:
-            x = x[:, 1:, :].mean(dim=1)  # global pool without cls token
-            outcome = self.fc_norm(x)
-        else:
-            x = self.norm(x)
-            outcome = x[:, 0]
-        
-        return outcome
-
-    def forward(self, x, input_res=None):
-        x = self.forward_features(x, input_res=input_res)
-        x = self.extract_cls_token(x)
-        x = self.head(x)
-        return x
-
 
 def vit_base_patch16(**kwargs):
     model = VisionTransformer(
@@ -134,13 +104,10 @@ def vit_base_patch16(**kwargs):
 
 
 def vit_large_patch16(**kwargs):
-
-    # TODO CHANGE THIS, Depth = 6 to save memory
-
     model = VisionTransformer(
         patch_size=16,
         embed_dim=1024,
-        depth=12,
+        depth=24,
         num_heads=16,
         mlp_ratio=4,
         qkv_bias=True,

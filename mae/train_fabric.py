@@ -46,7 +46,7 @@ class Configs:
 
         # self.load_checkpoint_path = f"/home/timothygao/scalemae_docker/checkpoints/latest_checkpoint_{self.input_size}.pth"
         self.load_checkpoint_path = None
-        self.save_checkpoint_path = f"/home/timothygao/scalemae_docker/checkpoints/latest_checkpoint_800_modified.pth"
+        self.save_checkpoint_path = f"/home/timothygao/scalemae_docker/checkpoints/latest_checkpoint_800_test.pth"
 
 
 def get_transform(train, config):
@@ -124,19 +124,21 @@ def train_one_epoch(fabric, model, optimizer, data_loader, epoch, print_freq, ra
 
     all_loss_sums = []
     window_len = 100
-
+    print(torch.cuda.memory_summary())
     for images, targets in metric_logger.log_every(data_loader, print_freq, header):
         images = fabric.to_device(images)
         targets = [{k: fabric.to_device(v) if isinstance(v, torch.Tensor) else v for k, v in t.items()} for t in targets]
 
+
+        print(torch.cuda.memory_summary())
         with fabric.autocast():
             loss_dict = model(images, targets)
             losses = sum(loss for loss in loss_dict.values())
-
+        print(torch.cuda.memory_summary())
         # reduce losses over all GPUs for logging purposes
         loss_dict_reduced = utils.reduce_dict(loss_dict)
         losses_reduced = sum(loss for loss in loss_dict_reduced.values())
-
+        print(torch.cuda.memory_summary())
         loss_value = losses_reduced.item()
         all_loss_sums.append(loss_value)
 
@@ -148,12 +150,15 @@ def train_one_epoch(fabric, model, optimizer, data_loader, epoch, print_freq, ra
                 "smooth_loss": sum(all_loss_sums[-mn:]) / mn
             })
 
+        print(torch.cuda.memory_summary())
         if not math.isfinite(loss_value):
             print(f"Loss is {loss_value}, stopping training")
             sys.exit(1)
 
         fabric.backward(losses)
         optimizer.step()
+        
+        print(torch.cuda.memory_summary())
 
         if lr_scheduler is not None:
             lr_scheduler.step()
@@ -170,12 +175,12 @@ from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 def main():
     config = Configs()
     
-    auto_wrap_policy = partial(transformer_auto_wrap_policy,
-        transformer_layer_cls={EncoderBlock}
-    )
-    strategy = FSDPStrategy(auto_wrap_policy=auto_wrap_policy)
+    # auto_wrap_policy = partial(transformer_auto_wrap_policy,
+    #     transformer_layer_cls={EncoderBlock}
+    # )
+    # strategy = FSDPStrategy(auto_wrap_policy=auto_wrap_policy)
     fabric = Fabric(accelerator="cuda", 
-        strategy=strategy, precision="16-mixed"
+        strategy="fsdp", precision="16-mixed"
     )
     fabric.launch()
     
@@ -232,23 +237,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-# torchrun --nproc_per_node=10 train_mem.py
-# torchrun --nproc_per_node=8 train_mem.py
-# torchrun --nproc_per_node=5 train_mem.py
-# torchrun --nproc_per_node=1 train_mem.py
-
-'''
-TODO:
-- Swin transformer ~ architecture
-- Mixup (Timm)  ~ transformations
-- FDSP / other techniques, try to increase depth? ~ memory
-- Grad strides do not match bucket view strides. This may indicate grad was not created according to the gradient layout contract, or that the param's strides changed since DDP was constructed.  This is not an error, but may impair performance.
-(https://github.com/pytorch/pytorch/issues/47163)
-'''
-
-
-
-# /home/timothygao/miniconda/envs/scalemae/lib/python3.9/site-packages/torch/autograd/graph.py:744: UserWarning: 
-# Grad strides do not match bucket view strides. This may indicate grad was not created according to the gradient layout contract, or that the param's strides changed since DDP was constructed.  This is not an error, but may impair performance.
